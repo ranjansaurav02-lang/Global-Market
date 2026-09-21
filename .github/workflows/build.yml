@@ -1,1 +1,50 @@
+name: Build Android APK
 
+on:
+  push:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build APK with Capacitor
+        run: |
+          mkdir -p www
+          # Copy your HTML and asset files into the www folder
+          find . -maxdepth 1 ! -name '.' ! -name '.git' ! -name '.github' ! -name 'www' -exec cp -r -t www/ {} +
+          
+          # Generate configurations
+          echo '{"name": "my-app", "version": "1.0.0"}' > package.json
+          echo '{"appId": "com.myapp.htmlapk", "appName": "My HTML App", "webDir": "www"}' > capacitor.config.json
+          
+          # Install Capacitor and build Android project
+          npm install @capacitor/core @capacitor/cli @capacitor/android
+          npx cap add android
+          
+          # Compile the APK
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
