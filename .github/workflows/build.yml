@@ -39,7 +39,11 @@ jobs:
           npm install @capacitor/core @capacitor/cli @capacitor/android
           npx cap add android
 
-          # 4. Build APK using Java 21
+          # 4. Use lightweight Gradle binary and increase download timeout
+          sed -i 's/-all.zip/-bin.zip/g' android/gradle/wrapper/gradle-wrapper.properties
+          export JAVA_OPTS="-Dsun.net.client.defaultConnectTimeout=60000 -Dsun.net.client.defaultReadTimeout=60000"
+
+          # 5. Build APK using Java 21
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon -Dorg.gradle.java.home=$JAVA_HOME
