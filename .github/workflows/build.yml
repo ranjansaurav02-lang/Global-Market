@@ -1,61 +1,72 @@
 name: Build Android APK
+
 on:
-push:
-branches: [ main, master ]
-workflow_dispatch:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
 jobs:
-build:
-runs-on: ubuntu-latest
-steps:
-- name: Checkout repository
-uses: actions/checkout@v4
-- name: Set up Java JDK 17
-uses: actions/setup-java@v4
-with:
-distribution: 'zulu'
-java-version: '17'
-- name: Setup Node.js
-uses: actions/setup-node@v4
-with:
-node-version: '20'
-cache: 'npm'
-- name: Setup Gradle
-uses: gradle/actions/setup-gradle@v4
-- name: Prepare Web Assets & Capacitor Config
-run: |
-mkdir -p www
-cp -r index.html www/
-cp -r *.css *.js assets images style.css script.js www/ 2>/dev/null || true
-echo '{"name": "global-market-pro", "version": "1.0.0"}' > package.json
-echo '{"appId": "com.marketpro.app", "appName": "Global Market Pro", "webDir": "www"}' > capacitor.config.json
-- name: Install Capacitor & Add Android
-run: |
-npm install @capacitor/core @capacitor/cli @capacitor/android
-npx cap add android
-- name: Fix Kotlin Duplicate Classes & Gradle Settings
-run: |
-# 1. Switch to the lighter -bin.zip wrapper distribution
-sed -i 's/-all.zip/-bin.zip/g' android/gradle/wrapper/gradle-wrapper.properties
-# 2. Increase network timeouts for Gradle dependencies
-echo "systemProp.org.gradle.internal.http.socketTimeout=300000" >> android/gradle.properties
-echo "systemProp.org.gradle.internal.http.connectionTimeout=300000" >> android/gradle.properties
-# 3. FIX DUPLICATE CLASS ERROR:
-# In Kotlin 1.8+, kotlin-stdlib absorbed kotlin-stdlib-jdk7 and kotlin-stdlib-jdk8.
-# We exclude the legacy jdk7/jdk8 modules globally so they do not collide with kotlin-stdlib.
-cat << 'EOF' >> android/app/build.gradle
-configurations.all {
-exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib-jdk7'
-exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib-jdk8'
-}
-EOF
-- name: Build Debug APK
-run: |
-cd android
-chmod +x gradlew
-./gradlew assembleDebug --no-daemon --stacktrace
-- name: Upload APK Artifact
-uses: actions/upload-artifact@v4
-with:
-name: Global-Market-Pro-APK
-path: android/app/build/outputs/apk/debug/app-debug.apk
-if-no-files-found: error
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Prepare Web Assets & Capacitor Config
+        run: |
+          mkdir -p www
+          cp -r index.html www/
+          cp -r *.css *.js assets images style.css script.js www/ 2>/dev/null || true
+          echo '{"name": "global-market-pro", "version": "1.0.0"}' > package.json
+          echo '{"appId": "com.marketpro.app", "appName": "Global Market Pro", "webDir": "www"}' > capacitor.config.json
+
+      - name: Install Capacitor & Add Android
+        run: |
+          npm install @capacitor/core @capacitor/cli @capacitor/android
+          npx cap add android
+
+      - name: Fix Kotlin Duplicate Classes & Timeout Settings
+        run: |
+          # 1. Switch wrapper to lightweight bin.zip
+          sed -i 's/-all.zip/-bin.zip/g' android/gradle/wrapper/gradle-wrapper.properties
+
+          # 2. Increase Gradle network timeouts
+          echo "systemProp.org.gradle.internal.http.socketTimeout=300000" >> android/gradle.properties
+          echo "systemProp.org.gradle.internal.http.connectionTimeout=300000" >> android/gradle.properties
+
+          # 3. FIX DUPLICATE CLASS: Exclude legacy jdk7 and jdk8 stdlib modules
+          cat << 'EOF' >> android/app/build.gradle
+
+          configurations.all {
+              exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib-jdk7'
+              exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib-jdk8'
+          }
+          EOF
+
+      - name: Build Debug APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Global-Market-Pro-APK
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
