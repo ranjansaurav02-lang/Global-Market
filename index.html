@@ -1,0 +1,1767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Global Market Pro | Zerodha & Groww Style Terminal</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js for live intraday & historical charts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            brand: {
+              dark: '#0a0d14',
+              card: '#121722',
+              cardLight: '#181f2e',
+              border: '#222b3d',
+              borderLight: '#2e3b52',
+              green: '#00d09c',      /* Groww signature teal-green */
+              greenDim: '#00d09c18',
+              red: '#eb5b3c',        /* Groww / Zerodha vibrant red */
+              redDim: '#eb5b3c18',
+              blue: '#387ed1',       /* Zerodha Kite signature blue */
+              yellow: '#f59e0b',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Prevent rubber banding & enable sleek touch scrolling */
+    body {
+      touch-action: pan-y;
+      -webkit-font-smoothing: antialiased;
+      background-color: #06090e;
+    }
+    
+    .tabular-nums {
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Live price tick flash animations like Zerodha / Groww */
+    @keyframes flashGreen {
+      0% { background-color: rgba(0, 208, 156, 0.45); }
+      100% { background-color: transparent; }
+    }
+    @keyframes flashRed {
+      0% { background-color: rgba(235, 91, 60, 0.45); }
+      100% { background-color: transparent; }
+    }
+
+    .tick-up {
+      animation: flashGreen 0.7s cubic-bezier(0.2, 0.9, 0.3, 1);
+    }
+    .tick-down {
+      animation: flashRed 0.7s cubic-bezier(0.2, 0.9, 0.3, 1);
+    }
+
+    /* Custom thin scrollbars */
+    ::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0a0d14;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #252e42;
+      border-radius: 4px;
+    }
+    
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    /* Depth bars */
+    .bid-bar {
+      background: linear-gradient(90deg, rgba(0, 208, 156, 0.15) 0%, rgba(0, 208, 156, 0.05) 100%);
+    }
+    .ask-bar {
+      background: linear-gradient(270deg, rgba(235, 91, 60, 0.15) 0%, rgba(235, 91, 60, 0.05) 100%);
+    }
+  </style>
+</head>
+
+<body class="text-slate-100 font-sans min-h-screen flex justify-center selection:bg-brand-blue selection:text-white">
+
+  <div class="w-full max-w-md md:max-w-xl lg:max-w-2xl min-h-screen bg-brand-dark flex flex-col border-x border-brand-border/60 shadow-2xl relative pb-20">
+    
+    <!-- Top System & Status Header -->
+    <header class="sticky top-0 z-40 bg-brand-dark/95 backdrop-blur-md border-b border-brand-border/80 px-4 pt-3 pb-2.5">
+      <!-- Android Status Notch & Live Signal indicator -->
+      <div class="flex items-center justify-between text-[11px] text-slate-400 font-mono mb-2">
+        <div class="flex items-center gap-1.5">
+          <span class="relative flex h-2 w-2">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-green opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2 w-2 bg-brand-green"></span>
+          </span>
+          <span class="text-brand-green font-semibold tracking-wider text-[10px] uppercase" id="tick-engine-status">LIVE TICK FEED (500ms)</span>
+        </div>
+        <div class="flex items-center gap-3">
+          <span id="market-clock">09:15:00 IST</span>
+          <span class="px-1.5 py-0.5 rounded bg-brand-card text-[10px] text-slate-300 font-medium border border-brand-border">5G Ultra</span>
+        </div>
+      </div>
+
+      <!-- App Title & Global Country Selector Header -->
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-brand-blue to-cyan-400 flex items-center justify-center font-bold text-white shadow-lg shadow-brand-blue/20">
+            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+            </svg>
+          </div>
+          <div>
+            <h1 class="text-base font-extrabold tracking-tight text-white flex items-center gap-1.5">
+              GROWW<span class="text-brand-green">KITE</span>
+              <span class="text-[9px] bg-brand-blue/20 text-brand-blue font-bold px-1.5 py-0.5 rounded border border-brand-blue/30 uppercase">Global</span>
+            </h1>
+          </div>
+        </div>
+
+        <!-- Search & Global Notification buttons -->
+        <div class="flex items-center gap-2">
+          <button id="open-search-btn" class="p-2 rounded-lg bg-brand-card hover:bg-brand-cardLight border border-brand-border text-slate-300 hover:text-white transition active:scale-95">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+          </button>
+          <button id="toggle-gemini-ai" class="p-2 rounded-lg bg-gradient-to-r from-purple-900/40 to-blue-900/40 border border-purple-500/40 text-purple-300 hover:text-purple-100 transition active:scale-95 flex items-center gap-1 text-xs font-semibold">
+            <svg class="w-3.5 h-3.5 animate-pulse text-purple-400" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 2L14.39 8.26L21 9.27L16.27 13.87L17.58 20.46L12 17.27L6.42 20.46L7.73 13.87L3 9.27L9.61 8.26L12 2Z"/>
+            </svg>
+            <span class="hidden sm:inline">AI Pulse</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-3 pb-1 -mx-2 px-2 text-xs font-medium">
+        <button data-market="ALL" class="market-filter-btn active-filter px-3 py-1.5 rounded-full bg-brand-green text-black font-bold whitespace-nowrap transition">
+          🌍 All Markets
+        </button>
+        <button data-market="IN" class="market-filter-btn px-3 py-1.5 rounded-full bg-brand-card text-slate-300 border border-brand-border hover:border-slate-500 whitespace-nowrap transition flex items-center gap-1.5">
+          <span>🇮🇳</span> India (NSE/BSE)
+        </button>
+        <button data-market="US" class="market-filter-btn px-3 py-1.5 rounded-full bg-brand-card text-slate-300 border border-brand-border hover:border-slate-500 whitespace-nowrap transition flex items-center gap-1.5">
+          <span>🇺🇸</span> US (NYSE/NASD)
+        </button>
+        <button data-market="JP" class="market-filter-btn px-3 py-1.5 rounded-full bg-brand-card text-slate-300 border border-brand-border hover:border-slate-500 whitespace-nowrap transition flex items-center gap-1.5">
+          <span>🇯🇵</span> Japan (TSE)
+        </button>
+        <button data-market="KR" class="market-filter-btn px-3 py-1.5 rounded-full bg-brand-card text-slate-300 border border-brand-border hover:border-slate-500 whitespace-nowrap transition flex items-center gap-1.5">
+          <span>🇰🇷</span> S. Korea (KRX)
+        </button>
+        <button data-market="CN" class="market-filter-btn px-3 py-1.5 rounded-full bg-brand-card text-slate-300 border border-brand-border hover:border-slate-500 whitespace-nowrap transition flex items-center gap-1.5">
+          <span>🇨🇳</span> China (SSE/SZSE)
+        </button>
+      </div>
+
+      <div id="breaking-ticker-bar" class="mt-2.5 bg-gradient-to-r from-brand-card via-slate-900 to-brand-card border border-brand-border/90 rounded-lg px-2.5 py-1.5 flex items-center gap-2 overflow-hidden shadow-inner cursor-pointer" onclick="switchToNewsTab()">
+        <div class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-brand-red/20 border border-brand-red/40 text-[9px] font-extrabold text-brand-red tracking-wider uppercase shrink-0">
+          <span class="w-1.5 h-1.5 rounded-full bg-brand-red animate-ping"></span>
+          BREAKING
+        </div>
+        <div class="overflow-hidden whitespace-nowrap flex-1">
+          <p id="live-news-headline" class="text-[11px] text-slate-300 font-medium truncate animate-fade">
+            Loading latest real-time market catalysts...
+          </p>
+        </div>
+        <span class="text-[10px] text-brand-blue font-semibold shrink-0 flex items-center gap-0.5">
+          Impact <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        </span>
+      </div>
+    </header>
+
+    <main class="flex-1 overflow-y-auto px-4 py-3 space-y-4">
+      
+      <!-- Top Index Ticker Carousel (Nifty, Sensex, S&P 500, Nasdaq, Nikkei, Kospi, SSE) -->
+      <section>
+        <div class="flex items-center justify-between mb-2">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+            <span class="w-1.5 h-1.5 rounded-full bg-brand-blue"></span>
+            Major Global Indices
+          </h2>
+          <span class="text-[11px] text-slate-500 font-medium">Auto-refreshed realtime</span>
+        </div>
+
+        <!-- Horizontal scrollable index cards -->
+        <div id="indices-container" class="flex gap-2.5 overflow-x-auto no-scrollbar pb-1 -mx-4 px-4">
+          <!-- Dynamically filled by JS -->
+        </div>
+      </section>
+
+      <!-- View Navigation Tabs: Top Gainers (Top 50) | Top Losers (Top 50) | Market List | Live News -->
+      <section class="bg-brand-card rounded-2xl border border-brand-border p-1">
+        <div class="grid grid-cols-4 gap-1 text-center font-semibold text-[11px]">
+          <button id="tab-gainers" class="tab-btn active-tab py-2 rounded-xl bg-brand-green/15 text-brand-green border border-brand-green/30 transition flex items-center justify-center gap-1">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+            </svg>
+            Gainers
+          </button>
+          <button id="tab-losers" class="tab-btn py-2 rounded-xl text-slate-400 hover:text-white transition flex items-center justify-center gap-1">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 17h8m0 0v-8m0 8l-8-8-4 4-6-6" />
+            </svg>
+            Losers
+          </button>
+          <button id="tab-all" class="tab-btn py-2 rounded-xl text-slate-400 hover:text-white transition flex items-center justify-center gap-1">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+            </svg>
+            Stocks
+          </button>
+          <button id="tab-news" class="tab-btn py-2 rounded-xl text-slate-400 hover:text-white transition flex items-center justify-center gap-1 relative">
+            <svg class="w-3 h-3 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"/>
+            </svg>
+            News Feed
+            <span class="w-1.5 h-1.5 rounded-full bg-brand-green absolute top-1.5 right-1"></span>
+          </button>
+        </div>
+      </section>
+
+      <section id="stocks-view-container" class="space-y-3">
+        <div class="bg-brand-card/70 backdrop-blur rounded-xl border border-brand-border px-3.5 py-2.5 flex items-center justify-between text-xs">
+          <div class="flex items-center gap-2">
+            <span class="text-slate-400 font-medium">Market Breadth:</span>
+            <span class="text-brand-green font-bold flex items-center gap-0.5">
+              ▲ <span id="stat-advances">0</span> Adv
+            </span>
+            <span class="text-slate-600">|</span>
+            <span class="text-brand-red font-bold flex items-center gap-0.5">
+              ▼ <span id="stat-declines">0</span> Dec
+            </span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <label for="speed-selector" class="text-slate-400 text-[11px]">Tick Speed:</label>
+            <select id="speed-selector" class="bg-brand-dark text-slate-300 text-[11px] rounded px-1.5 py-0.5 border border-brand-border outline-none">
+              <option value="300">Fast (300ms)</option>
+              <option value="600" selected>Normal (600ms)</option>
+              <option value="1500">Slow (1.5s)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="space-y-1">
+          <!-- Table Column Headers -->
+          <div class="flex items-center justify-between px-3 py-1.5 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+            <div class="w-5/12 flex items-center gap-1 cursor-pointer hover:text-slate-200" id="sort-name">
+              <span>Company / Sym</span>
+            </div>
+            <div class="w-3/12 text-right cursor-pointer hover:text-slate-200" id="sort-price">
+              <span>LTP Price</span>
+            </div>
+            <div class="w-4/12 text-right cursor-pointer hover:text-slate-200" id="sort-change">
+              <span>24h Chg (%)</span>
+            </div>
+          </div>
+
+          <!-- The Live Rows Container -->
+          <div id="stocks-list" class="space-y-1.5">
+            <!-- Dynamically filled with interactive, live-ticking rows -->
+          </div>
+        </div>
+      </section>
+
+      <section id="news-view-container" class="hidden space-y-3">
+        <div class="bg-brand-card/90 rounded-xl border border-brand-border p-3 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <div class="w-2 h-2 rounded-full bg-brand-green animate-ping"></div>
+            <div>
+              <h3 class="text-xs font-bold text-white uppercase tracking-wider">Real-Time Market Wire</h3>
+              <p class="text-[10px] text-slate-400">News catalysts driving price swings across 5 countries</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-1 text-[10px]">
+            <button onclick="filterNewsByImpact('ALL')" class="news-filter-pill px-2 py-0.5 rounded-full bg-brand-blue text-white font-semibold">All</button>
+            <button onclick="filterNewsByImpact('BULLISH')" class="news-filter-pill px-2 py-0.5 rounded-full bg-brand-card text-brand-green border border-brand-border">Bullish</button>
+            <button onclick="filterNewsByImpact('BEARISH')" class="news-filter-pill px-2 py-0.5 rounded-full bg-brand-card text-brand-red border border-brand-border">Bearish</button>
+          </div>
+        </div>
+
+        <div id="news-list-container" class="space-y-2.5">
+          <!-- Populated dynamically by JS -->
+        </div>
+      </section>
+
+      <!-- AI Market Pulse Panel (collapsible) -->
+      <section id="gemini-ai-box" class="hidden bg-gradient-to-br from-[#1b1730] to-brand-card rounded-2xl border border-purple-500/30 p-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <div class="p-1.5 rounded-lg bg-purple-500/20 text-purple-300">
+              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 2L14.39 8.26L21 9.27L16.27 13.87L17.58 20.46L12 17.27L6.42 20.46L7.73 13.87L3 9.27L9.61 8.26L12 2Z"/>
+              </svg>
+            </div>
+            <div>
+              <h3 class="text-xs font-bold text-purple-200">Gemini Global Intelligence</h3>
+              <p class="text-[10px] text-purple-400/80">Real-time macro analysis & sentiment scanner</p>
+            </div>
+          </div>
+          <button id="refresh-ai-btn" class="px-2 py-1 rounded bg-purple-600 hover:bg-purple-500 text-white font-medium text-[11px] transition active:scale-95">
+            Analyze Now
+          </button>
+        </div>
+        <div id="ai-response-content" class="text-xs text-slate-300 leading-relaxed bg-black/30 p-3 rounded-xl border border-purple-500/20 font-sans">
+          Tap "Analyze Now" to generate real-time synthesized macro commentary for Indian, US, Japanese, Korean, and Chinese stock markets using Gemini.
+        </div>
+      </section>
+    </main>
+
+    <div id="stock-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col justify-end hidden">
+      <div class="w-full max-w-md md:max-w-xl lg:max-w-2xl mx-auto bg-brand-dark border-t border-brand-border rounded-t-3xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl animate-in slide-in-from-bottom duration-200">
+        
+        <!-- Drag Handle / Header -->
+        <div class="p-4 border-b border-brand-border flex items-start justify-between bg-brand-card">
+          <div>
+            <div class="flex items-center gap-2">
+              <span id="modal-country-flag" class="text-xl">🇮🇳</span>
+              <h3 id="modal-symbol" class="text-lg font-extrabold text-white tracking-tight">RELIANCE</h3>
+              <span id="modal-exchange" class="text-[10px] px-1.5 py-0.5 rounded bg-brand-border font-mono text-slate-300">NSE</span>
+            </div>
+            <p id="modal-name" class="text-xs text-slate-400 mt-0.5">Reliance Industries Limited</p>
+          </div>
+          <div class="text-right">
+            <div id="modal-price" class="text-xl font-mono font-bold text-white">₹2,940.50</div>
+            <div id="modal-change" class="text-xs font-mono font-semibold text-brand-green flex items-center justify-end gap-1">
+              +42.30 (+1.46%)
+            </div>
+          </div>
+          <button id="close-modal-btn" class="p-1.5 ml-3 rounded-full bg-brand-cardLight text-slate-400 hover:text-white border border-brand-border">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Scrollable Modal Body -->
+        <div class="flex-1 overflow-y-auto p-4 space-y-4">
+          <!-- Timeframe selector -->
+          <div class="flex items-center justify-between text-xs font-semibold">
+            <div class="flex gap-1 bg-brand-card p-1 rounded-lg border border-brand-border">
+              <button class="chart-time-btn px-2.5 py-1 rounded bg-brand-blue text-white" data-tf="1D">1D</button>
+              <button class="chart-time-btn px-2.5 py-1 rounded text-slate-400 hover:text-white" data-tf="1W">1W</button>
+              <button class="chart-time-btn px-2.5 py-1 rounded text-slate-400 hover:text-white" data-tf="1M">1M</button>
+              <button class="chart-time-btn px-2.5 py-1 rounded text-slate-400 hover:text-white" data-tf="1Y">1Y</button>
+            </div>
+            <div class="text-[11px] text-slate-400 flex items-center gap-2">
+              <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-brand-green"></span> Vol: <b id="modal-vol" class="text-slate-200">12.4M</b></span>
+            </div>
+          </div>
+
+          <!-- Chart Area -->
+          <div class="h-44 w-full bg-brand-card/50 rounded-xl p-2 border border-brand-border relative">
+            <canvas id="stockDetailChart"></canvas>
+          </div>
+
+          <!-- Market Depth: Level 2 Quotes (5 Bids / 5 Asks) -->
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <h4 class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5 text-brand-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                </svg>
+                Level 2 Market Depth (Live)
+              </h4>
+              <span class="text-[10px] text-slate-400 font-mono">Total: <span id="depth-ratio" class="text-brand-green">58% Buy</span></span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 bg-brand-card rounded-xl p-2.5 border border-brand-border text-[11px] font-mono">
+              <!-- Bids (Buy Orders) -->
+              <div>
+                <div class="flex justify-between text-slate-500 font-sans text-[10px] pb-1 border-b border-brand-border">
+                  <span>BID PRICE</span>
+                  <span>ORDERS</span>
+                  <span>QTY</span>
+                </div>
+                <div id="depth-bids" class="space-y-1 mt-1">
+                  <!-- Generated dynamically -->
+                </div>
+              </div>
+
+              <!-- Asks (Sell Orders) -->
+              <div>
+                <div class="flex justify-between text-slate-500 font-sans text-[10px] pb-1 border-b border-brand-border">
+                  <span>OFFER</span>
+                  <span>ORDERS</span>
+                  <span>QTY</span>
+                </div>
+                <div id="depth-asks" class="space-y-1 mt-1">
+                  <!-- Generated dynamically -->
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Key Financial Statistics Grid -->
+          <div class="grid grid-cols-3 gap-2 bg-brand-card rounded-xl p-3 border border-brand-border text-xs">
+            <div>
+              <span class="text-[10px] text-slate-400 block">Today's High</span>
+              <span id="stat-high" class="font-mono font-semibold text-slate-200">--</span>
+            </div>
+            <div>
+              <span class="text-[10px] text-slate-400 block">Today's Low</span>
+              <span id="stat-low" class="font-mono font-semibold text-slate-200">--</span>
+            </div>
+            <div>
+              <span class="text-[10px] text-slate-400 block">52W High</span>
+              <span id="stat-52h" class="font-mono font-semibold text-slate-200">--</span>
+            </div>
+            <div>
+              <span class="text-[10px] text-slate-400 block">52W Low</span>
+              <span id="stat-52l" class="font-mono font-semibold text-slate-200">--</span>
+            </div>
+            <div>
+              <span class="text-[10px] text-slate-400 block">Market Cap</span>
+              <span id="stat-mcap" class="font-mono font-semibold text-slate-200">--</span>
+            </div>
+            <div>
+              <span class="text-[10px] text-slate-400 block">P/E Ratio</span>
+              <span id="stat-pe" class="font-mono font-semibold text-slate-200">--</span>
+            </div>
+          </div>
+
+          <div class="bg-brand-card rounded-xl border border-brand-border p-3 space-y-2">
+            <div class="flex items-center justify-between border-b border-brand-border/60 pb-2">
+              <div class="flex items-center gap-1.5">
+                <span class="text-amber-400">⚡</span>
+                <h4 class="text-xs font-bold text-white uppercase tracking-wider">News & Fluctuation Catalysts</h4>
+              </div>
+              <button id="ai-stock-driver-btn" onclick="explainStockFluctuationWithAI()" class="text-[10px] px-2 py-0.5 rounded bg-purple-900/40 border border-purple-500/40 text-purple-300 hover:text-white flex items-center gap-1 transition active:scale-95">
+                <svg class="w-3 h-3 text-purple-400" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L14.39 8.26L21 9.27L16.27 13.87L17.58 20.46L12 17.27L6.42 20.46L7.73 13.87L3 9.27L9.61 8.26L12 2Z"/></svg>
+                AI Why It Moved?
+              </button>
+            </div>
+            <div id="modal-ai-explanation" class="hidden text-xs bg-purple-950/30 border border-purple-500/30 rounded-lg p-2.5 text-purple-200 leading-relaxed font-sans">
+              <!-- AI explanation appears here -->
+            </div>
+            <div id="modal-stock-news" class="space-y-2">
+              <!-- Dynamically populated with related stock news items -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Zerodha / Groww Instant Action Footer Bar -->
+        <div class="p-3 bg-brand-card border-t border-brand-border flex gap-3">
+          <button id="action-buy-btn" class="flex-1 py-3 rounded-xl bg-brand-green hover:bg-emerald-400 text-black font-extrabold text-sm uppercase tracking-wide transition shadow-lg shadow-brand-green/20 active:scale-98">
+            Buy (Invest)
+          </button>
+          <button id="action-sell-btn" class="flex-1 py-3 rounded-xl bg-brand-red hover:bg-rose-500 text-white font-extrabold text-sm uppercase tracking-wide transition shadow-lg shadow-brand-red/20 active:scale-98">
+            Sell (Short)
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="search-modal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex flex-col p-4 hidden">
+      <div class="w-full max-w-md md:max-w-xl mx-auto flex flex-col h-full">
+        <!-- Search Input Bar -->
+        <div class="flex items-center gap-2 pb-3 border-b border-brand-border">
+          <div class="relative flex-1">
+            <svg class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+            <input id="search-input" type="text" placeholder="Search Reliance, Apple, Samsung, Nikkei, Toyota..." 
+                   class="w-full bg-brand-card pl-10 pr-4 py-2.5 rounded-xl border border-brand-border text-sm text-white placeholder-slate-500 focus:outline-none focus:border-brand-blue" autofocus>
+          </div>
+          <button id="close-search-btn" class="px-3 py-2 text-sm text-slate-400 hover:text-white font-medium">Cancel</button>
+        </div>
+
+        <!-- Search Results list -->
+        <div id="search-results" class="flex-1 overflow-y-auto divide-y divide-brand-border/40 py-2">
+          <!-- Populated in JS -->
+        </div>
+      </div>
+    </div>
+
+    <div id="toast" class="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl bg-slate-900/95 border border-slate-700 text-white text-xs font-semibold shadow-2xl flex items-center gap-2 transform transition-all duration-300 opacity-0 pointer-events-none translate-y-3">
+      <span id="toast-icon">✅</span>
+      <span id="toast-msg">Order Executed successfully</span>
+    </div>
+
+    <nav class="fixed bottom-0 w-full max-w-md md:max-w-xl lg:max-w-2xl bg-brand-dark/95 backdrop-blur-lg border-t border-brand-border/80 px-6 py-2 flex items-center justify-between text-[10px] font-medium z-40">
+      <button id="nav-stocks-btn" class="nav-item active text-brand-green flex flex-col items-center gap-1 transition">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+        </svg>
+        <span>Stocks</span>
+      </button>
+
+      <button id="nav-news-btn" class="nav-item text-slate-400 hover:text-slate-200 flex flex-col items-center gap-1 transition relative">
+        <span class="w-1.5 h-1.5 rounded-full bg-brand-green absolute top-0 right-3"></span>
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"/>
+        </svg>
+        <span>Live News</span>
+      </button>
+
+      <button id="nav-watchlist-btn" class="nav-item text-slate-400 hover:text-slate-200 flex flex-col items-center gap-1 transition">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/>
+        </svg>
+        <span>Watchlist</span>
+      </button>
+
+      <button id="nav-portfolio-btn" class="nav-item text-slate-400 hover:text-slate-200 flex flex-col items-center gap-1 transition">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        <span>Portfolio (<span id="portfolio-count" class="text-brand-green">0</span>)</span>
+      </button>
+
+      <button id="nav-orders-btn" class="nav-item text-slate-400 hover:text-slate-200 flex flex-col items-center gap-1 transition">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
+        </svg>
+        <span>Orders</span>
+      </button>
+    </nav>
+  </div>
+
+  <script>
+    /**
+     * GLOBAL STOCK DATASET
+     * Covering India (NSE/BSE), US (NYSE/NASDAQ), Japan (TSE), S. Korea (KRX), and China (SSE/SZSE)
+     * Containing top blue-chips and high-beta movers to calculate Top 50 Gainers & Losers.
+     */
+    const GLOBAL_INDEXES = [
+      { id: 'NIFTY50', name: 'NIFTY 50', country: 'IN', flag: '🇮🇳', price: 25380.20, change: 142.50, changePercent: 0.56, currency: '₹' },
+      { id: 'SENSEX', name: 'BSE SENSEX', country: 'IN', flag: '🇮🇳', price: 82950.40, change: 480.10, changePercent: 0.58, currency: '₹' },
+      { id: 'SP500', name: 'S&P 500', country: 'US', flag: '🇺🇸', price: 5625.80, change: -18.40, changePercent: -0.33, currency: '$' },
+      { id: 'NASDAQ', name: 'NASDAQ 100', country: 'US', flag: '🇺🇸', price: 19680.15, change: 95.30, changePercent: 0.49, currency: '$' },
+      { id: 'NIKKEI225', name: 'NIKKEI 225', country: 'JP', flag: '🇯🇵', price: 38720.00, change: 310.50, changePercent: 0.81, currency: '¥' },
+      { id: 'KOSPI', name: 'KOSPI', country: 'KR', flag: '🇰🇷', price: 2610.40, change: -12.10, changePercent: -0.46, currency: '₩' },
+      { id: 'SHANGHAI', name: 'SSE COMPOSITE', country: 'CN', flag: '🇨🇳', price: 2895.30, change: 24.80, changePercent: 0.86, currency: '¥' },
+      { id: 'BANKNIFTY', name: 'BANK NIFTY', country: 'IN', flag: '🇮🇳', price: 51840.60, change: -95.20, changePercent: -0.18, currency: '₹' }
+    ];
+
+    // Seed comprehensive multi-country stock portfolio
+    const INITIAL_STOCKS = [
+      // INDIA (NSE)
+      { id: 'IN_RELIANCE', symbol: 'RELIANCE', name: 'Reliance Industries', country: 'IN', flag: '🇮🇳', exchange: 'NSE', price: 2948.50, basePrice: 2906.20, currency: '₹', vol: '8.4M', pe: 28.4, mcap: '₹19.8T', high52: 3217.90, low52: 2220.30 },
+      { id: 'IN_TCS', symbol: 'TCS', name: 'Tata Consultancy Services', country: 'IN', flag: '🇮🇳', exchange: 'NSE', price: 4210.00, basePrice: 4180.00, currency: '₹', vol: '2.1M', pe: 32.1, mcap: '₹15.2T', high52: 4592.00, low52: 3313.00 },
+      { id: 'IN_HDFCBANK', symbol: 'HDFCBANK', name: 'HDFC Bank Ltd', country: 'IN', flag: '🇮🇳', exchange: 'NSE', price: 1642.30, basePrice: 1658.00, currency: '₹', vol: '14.2M', pe: 19.8, mcap: '₹12.5T', high52: 1794.00, low52: 1363.00 },
+      { id: 'IN_INFY', symbol: 'INFY', name: 'Infosys Limited', country: 'IN', flag: '🇮🇳', exchange: 'NSE', price: 1892.40, basePrice: 1855.00, currency: '₹', vol: '6.9M', pe: 27.5, mcap: '₹7.8T', high52: 1991.00, low52: 1358.00 },
+      { id: 'IN_TATAMOTORS', symbol: 'TATAMOTORS', name: 'Tata Motors Passenger', country: 'IN', flag: '🇮🇳', exchange: 'NSE', price: 982.10, basePrice: 940.00, currency: '₹', vol: '11.8M', pe: 10.6, mcap: '₹3.6T', high52: 1179.00, low52: 593.00 },
+      { id: 'IN_ICICIBANK', symbol: 'ICICIBANK', name: 'ICICI Bank Ltd', country: 'IN', flag: '🇮🇳', exchange: 'NSE', price: 1215.60, basePrice: 1205.00, currency: '₹', vol: '9.3M', pe: 18.2, mcap: '₹8.5T', high52: 1257.00, low52: 899.00 },
+      { id: 'IN_ITC', symbol: 'ITC', name: 'ITC Limited', country: 'IN', flag: '🇮🇳', exchange: 'NSE', price: 504.80, basePrice: 512.00, currency: '₹', vol: '7.5M', pe: 29.1, mcap: '₹6.3T', high52: 520.00, low52: 399.00 },
+      { id: 'IN_BHARTIARTL', symbol: 'BHARTIARTL', name: 'Bharti Airtel Ltd', country: 'IN', flag: '🇮🇳', exchange: 'NSE', price: 1612.40, basePrice: 1570.00, currency: '₹', vol: '4.8M', pe: 64.2, mcap: '₹9.1T', high52: 1660.00, low52: 885.00 },
+      { id: 'IN_SBIN', symbol: 'SBIN', name: 'State Bank of India', country: 'IN', flag: '🇮🇳', exchange: 'NSE', price: 790.20, basePrice: 805.00, currency: '₹', vol: '13.1M', pe: 10.2, mcap: '₹7.0T', high52: 912.00, low52: 543.00 },
+      { id: 'IN_LT', symbol: 'LT', name: 'Larsen & Toubro', country: 'IN', flag: '🇮🇳', exchange: 'NSE', price: 3620.00, basePrice: 3580.00, currency: '₹', vol: '1.9M', pe: 36.8, mcap: '₹4.9T', high52: 3948.00, low52: 2865.00 },
+      { id: 'IN_ZOMATO', symbol: 'ZOMATO', name: 'Zomato Limited', country: 'IN', flag: '🇮🇳', exchange: 'NSE', price: 275.40, basePrice: 260.00, currency: '₹', vol: '42.1M', pe: 110.4, mcap: '₹2.4T', high52: 298.00, low52: 98.00 },
+      { id: 'IN_ADANIENT', symbol: 'ADANIENT', name: 'Adani Enterprises Ltd', country: 'IN', flag: '🇮🇳', exchange: 'NSE', price: 2990.00, basePrice: 3120.00, currency: '₹', vol: '3.4M', pe: 88.0, mcap: '₹3.4T', high52: 3450.00, low52: 2142.00 },
+      { id: 'IN_SUZLON', symbol: 'SUZLON', name: 'Suzlon Energy Ltd', country: 'IN', flag: '🇮🇳', exchange: 'NSE', price: 81.50, basePrice: 76.20, currency: '₹', vol: '88.3M', pe: 72.0, mcap: '₹1.1T', high52: 86.00, low52: 21.00 },
+      { id: 'IN_PAYTM', symbol: 'PAYTM', name: 'One97 Communications', country: 'IN', flag: '🇮🇳', exchange: 'NSE', price: 655.20, basePrice: 685.00, currency: '₹', vol: '8.2M', pe: -14.2, mcap: '₹0.4T', high52: 998.00, low52: 310.00 },
+
+      // US (NYSE / NASDAQ)
+      { id: 'US_NVDA', symbol: 'NVDA', name: 'NVIDIA Corporation', country: 'US', flag: '🇺🇸', exchange: 'NASDAQ', price: 118.40, basePrice: 112.50, currency: '$', vol: '54.2M', pe: 52.4, mcap: '$2.9T', high52: 140.76, low52: 39.23 },
+      { id: 'US_AAPL', symbol: 'AAPL', name: 'Apple Inc.', country: 'US', flag: '🇺🇸', exchange: 'NASDAQ', price: 224.20, basePrice: 228.00, currency: '$', vol: '48.1M', pe: 33.2, mcap: '$3.4T', high52: 237.23, low52: 164.08 },
+      { id: 'US_MSFT', symbol: 'MSFT', name: 'Microsoft Corp', country: 'US', flag: '🇺🇸', exchange: 'NASDAQ', price: 432.50, basePrice: 428.10, currency: '$', vol: '19.4M', pe: 35.8, mcap: '$3.2T', high52: 468.35, low52: 309.45 },
+      { id: 'US_TSLA', symbol: 'TSLA', name: 'Tesla Inc.', country: 'US', flag: '🇺🇸', exchange: 'NASDAQ', price: 245.80, basePrice: 232.00, currency: '$', vol: '72.3M', pe: 68.1, mcap: '$780B', high52: 271.00, low52: 138.80 },
+      { id: 'US_AMZN', symbol: 'AMZN', name: 'Amazon.com Inc.', country: 'US', flag: '🇺🇸', exchange: 'NASDAQ', price: 188.90, basePrice: 184.20, currency: '$', vol: '31.1M', pe: 42.6, mcap: '$1.9T', high52: 201.20, low52: 118.35 },
+      { id: 'US_GOOGL', symbol: 'GOOGL', name: 'Alphabet Inc Class A', country: 'US', flag: '🇺🇸', exchange: 'NASDAQ', price: 161.20, basePrice: 165.40, currency: '$', vol: '22.8M', pe: 23.5, mcap: '$2.0T', high52: 191.75, low52: 120.21 },
+      { id: 'US_META', symbol: 'META', name: 'Meta Platforms Inc', country: 'US', flag: '🇺🇸', exchange: 'NASDAQ', price: 548.30, basePrice: 535.00, currency: '$', vol: '14.2M', pe: 26.8, mcap: '$1.3T', high52: 560.20, low52: 279.40 },
+      { id: 'US_AMD', symbol: 'AMD', name: 'Advanced Micro Devices', country: 'US', flag: '🇺🇸', exchange: 'NASDAQ', price: 154.60, basePrice: 162.00, currency: '$', vol: '39.0M', pe: 112.0, mcap: '$250B', high52: 227.30, low52: 94.04 },
+      { id: 'US_PLTR', symbol: 'PLTR', name: 'Palantir Technologies', country: 'US', flag: '🇺🇸', exchange: 'NYSE', price: 36.80, basePrice: 33.40, currency: '$', vol: '62.0M', pe: 95.0, mcap: '$82B', high52: 38.20, low52: 14.48 },
+      { id: 'US_INTC', symbol: 'INTC', name: 'Intel Corporation', country: 'US', flag: '🇺🇸', exchange: 'NASDAQ', price: 21.40, basePrice: 23.90, currency: '$', vol: '68.5M', pe: -18.4, mcap: '$91B', high52: 51.28, low52: 18.84 },
+
+      // JAPAN (TSE)
+      { id: 'JP_TOYOTA', symbol: '7203', name: 'Toyota Motor Corp', country: 'JP', flag: '🇯🇵', exchange: 'TSE', price: 2780.00, basePrice: 2720.00, currency: '¥', vol: '18.2M', pe: 8.4, mcap: '¥45.2T', high52: 3890.00, low52: 2350.00 },
+      { id: 'JP_SONY', symbol: '6758', name: 'Sony Group Corp', country: 'JP', flag: '🇯🇵', exchange: 'TSE', price: 13950.00, basePrice: 13680.00, currency: '¥', vol: '4.8M', pe: 16.2, mcap: '¥17.1T', high52: 15100.00, low52: 11400.00 },
+      { id: 'JP_SOFTBANK', symbol: '9984', name: 'SoftBank Group Corp', country: 'JP', flag: '🇯🇵', exchange: 'TSE', price: 8640.00, basePrice: 9150.00, currency: '¥', vol: '12.6M', pe: -8.9, mcap: '¥12.8T', high52: 11900.00, low52: 5800.00 },
+      { id: 'JP_NINTENDO', symbol: '7974', name: 'Nintendo Co Ltd', country: 'JP', flag: '🇯🇵', exchange: 'TSE', price: 7890.00, basePrice: 7800.00, currency: '¥', vol: '3.9M', pe: 21.5, mcap: '¥10.2T', high52: 9100.00, low52: 5900.00 },
+      { id: 'JP_TOKYOELEC', symbol: '8035', name: 'Tokyo Electron Ltd', country: 'JP', flag: '🇯🇵', exchange: 'TSE', price: 26400.00, basePrice: 25100.00, currency: '¥', vol: '5.2M', pe: 24.1, mcap: '¥12.4T', high52: 40100.00, low52: 20200.00 },
+      { id: 'JP_FASTRETAIL', symbol: '9983', name: 'Fast Retailing (Uniqlo)', country: 'JP', flag: '🇯🇵', exchange: 'TSE', price: 46200.00, basePrice: 47100.00, currency: '¥', vol: '1.1M', pe: 38.0, mcap: '¥14.1T', high52: 48900.00, low52: 32500.00 },
+      { id: 'JP_KEYENCE', symbol: '6861', name: 'Keyence Corp', country: 'JP', flag: '🇯🇵', exchange: 'TSE', price: 67300.00, basePrice: 65900.00, currency: '¥', vol: '0.8M', pe: 41.2, mcap: '¥16.3T', high52: 74200.00, low52: 54100.00 },
+
+      // SOUTH KOREA (KRX / KOSPI)
+      { id: 'KR_SAMSUNG', symbol: '005930', name: 'Samsung Electronics', country: 'KR', flag: '🇰🇷', exchange: 'KRX', price: 65800.00, basePrice: 67200.00, currency: '₩', vol: '16.5M', pe: 14.8, mcap: '₩440T', high52: 88800.00, low52: 64200.00 },
+      { id: 'KR_SKHYNIX', symbol: '000660', name: 'SK Hynix Inc', country: 'KR', flag: '🇰🇷', exchange: 'KRX', price: 162500.00, basePrice: 154000.00, currency: '₩', vol: '5.9M', pe: 11.2, mcap: '₩118T', high52: 248000.00, low52: 112000.00 },
+      { id: 'KR_LGENERGY', symbol: '373220', name: 'LG Energy Solution', country: 'KR', flag: '🇰🇷', exchange: 'KRX', price: 405000.00, basePrice: 392000.00, currency: '₩', vol: '1.2M', pe: 68.0, mcap: '₩94T', high52: 520000.00, low52: 310000.00 },
+      { id: 'KR_HYUNDAI', symbol: '005380', name: 'Hyundai Motor Co', country: 'KR', flag: '🇰🇷', exchange: 'KRX', price: 238000.00, basePrice: 242000.00, currency: '₩', vol: '2.4M', pe: 5.6, mcap: '₩50T', high52: 298000.00, low52: 172000.00 },
+      { id: 'KR_NAVER', symbol: '035420', name: 'NAVER Corp', country: 'KR', flag: '🇰🇷', exchange: 'KRX', price: 161000.00, basePrice: 158000.00, currency: '₩', vol: '1.8M', pe: 19.4, mcap: '₩26T', high52: 232000.00, low52: 153000.00 },
+      { id: 'KR_POSCO', symbol: '005490', name: 'POSCO Holdings', country: 'KR', flag: '🇰🇷', exchange: 'KRX', price: 382000.00, basePrice: 396000.00, currency: '₩', vol: '0.9M', pe: 28.5, mcap: '₩32T', high52: 605000.00, low52: 342000.00 },
+
+      // CHINA (SSE / SZSE / HK)
+      { id: 'CN_TENCENT', symbol: '0700', name: 'Tencent Holdings', country: 'CN', flag: '🇨🇳', exchange: 'HKEX', price: 382.40, basePrice: 371.20, currency: 'HK$', vol: '24.1M', pe: 22.3, mcap: 'HK$3.6T', high52: 412.00, low52: 260.00 },
+      { id: 'CN_BABA', symbol: '9988', name: 'Alibaba Group', country: 'CN', flag: '🇨🇳', exchange: 'HKEX', price: 86.50, basePrice: 83.20, currency: 'HK$', vol: '38.6M', pe: 13.9, mcap: 'HK$1.7T', high52: 90.50, low52: 64.60 },
+      { id: 'CN_BYD', symbol: '002594', name: 'BYD Company Ltd', country: 'CN', flag: '🇨🇳', exchange: 'SZSE', price: 254.30, basePrice: 242.00, currency: '¥', vol: '14.5M', pe: 20.1, mcap: '¥730B', high52: 278.00, low52: 162.00 },
+      { id: 'CN_MOUTAI', symbol: '600519', name: 'Kweichow Moutai', country: 'CN', flag: '🇨🇳', exchange: 'SSE', price: 1340.00, basePrice: 1390.00, currency: '¥', vol: '3.1M', pe: 21.0, mcap: '¥1.68T', high52: 1820.00, low52: 1280.00 },
+      { id: 'CN_CATL', symbol: '300750', name: 'CATL Battery', country: 'CN', flag: '🇨🇳', exchange: 'SZSE', price: 196.80, basePrice: 188.00, currency: '¥', vol: '19.2M', pe: 19.8, mcap: '¥860B', high52: 228.00, low52: 140.00 },
+      { id: 'CN_MEITUAN', symbol: '3690', name: 'Meituan', country: 'CN', flag: '🇨🇳', exchange: 'HKEX', price: 132.40, basePrice: 137.00, currency: 'HK$', vol: '29.3M', pe: 24.5, mcap: 'HK$820B', high52: 145.00, low52: 61.00 }
+    ];
+
+    // Expand dataset programmatically with high beta realistic stocks so Top 50 is full of real dynamics
+    const EXTENDED_NAMES = [
+      { s: 'BAJAJFIN', n: 'Bajaj Finance', c: 'IN', e: 'NSE', p: 7420, cur: '₹' },
+      { s: 'MARUTI', n: 'Maruti Suzuki', c: 'IN', e: 'NSE', p: 12380, cur: '₹' },
+      { s: 'SUNPHARMA', n: 'Sun Pharmaceutical', c: 'IN', e: 'NSE', p: 1840, cur: '₹' },
+      { s: 'TITAN', n: 'Titan Company Ltd', c: 'IN', e: 'NSE', p: 3750, cur: '₹' },
+      { s: 'WIPRO', n: 'Wipro Limited', c: 'IN', e: 'NSE', p: 540, cur: '₹' },
+      { s: 'COALINDIA', n: 'Coal India Ltd', c: 'IN', e: 'NSE', p: 495, cur: '₹' },
+      { s: 'HINDUNILVR', n: 'Hindustan Unilever', c: 'IN', e: 'NSE', p: 2790, cur: '₹' },
+      { s: 'ONGC', n: 'Oil & Natural Gas Corp', c: 'IN', e: 'NSE', p: 298, cur: '₹' },
+      { s: 'POWERGRID', n: 'Power Grid Corp', c: 'IN', e: 'NSE', p: 338, cur: '₹' },
+      { s: 'NTPC', n: 'NTPC Limited', c: 'IN', e: 'NSE', p: 412, cur: '₹' },
+      { s: 'MSFT', n: 'Broadcom Inc (AVGO)', c: 'US', e: 'NASDAQ', p: 168.4, cur: '$' },
+      { s: 'NFLX', n: 'Netflix Inc', c: 'US', e: 'NASDAQ', p: 708.2, cur: '$' },
+      { s: 'JPM', n: 'JPMorgan Chase', c: 'US', e: 'NYSE', p: 215.3, cur: '$' },
+      { s: 'V', n: 'Visa Inc.', c: 'US', e: 'NYSE', p: 278.4, cur: '$' },
+      { s: 'XOM', n: 'Exxon Mobil Corp', c: 'US', e: 'NYSE', p: 114.8, cur: '$' },
+      { s: 'COST', n: 'Costco Wholesale', c: 'US', e: 'NASDAQ', p: 912.4, cur: '$' },
+      { s: 'UBER', n: 'Uber Technologies', c: 'US', e: 'NYSE', p: 74.3, cur: '$' },
+      { s: 'COIN', n: 'Coinbase Global', c: 'US', e: 'NASDAQ', p: 172.5, cur: '$' },
+      { s: '6501', n: 'Hitachi Ltd', c: 'JP', e: 'TSE', p: 3950, cur: '¥' },
+      { s: '8306', n: 'MUFG Bank Group', c: 'JP', e: 'TSE', p: 1540, cur: '¥' },
+      { s: '7267', n: 'Honda Motor Co', c: 'JP', e: 'TSE', p: 1620, cur: '¥' },
+      { s: '4063', n: 'Shin-Etsu Chemical', c: 'JP', e: 'TSE', p: 6180, cur: '¥' },
+      { s: '051910', n: 'LG Chem Ltd', c: 'KR', e: 'KRX', p: 345000, cur: '₩' },
+      { s: '000270', n: 'Kia Corporation', c: 'KR', e: 'KRX', p: 104500, cur: '₩' },
+      { s: '035720', n: 'Kakao Corp', c: 'KR', e: 'KRX', p: 37500, cur: '₩' },
+      { s: '068270', n: 'Celltrion Inc', c: 'KR', e: 'KRX', p: 196000, cur: '₩' },
+      { s: '601398', n: 'ICBC Bank', c: 'CN', e: 'SSE', p: 5.82, cur: '¥' },
+      { s: '601318', n: 'Ping An Insurance', c: 'CN', e: 'SSE', p: 44.3, cur: '¥' },
+      { s: '0981', n: 'SMIC Semiconductor', c: 'CN', e: 'HKEX', p: 16.4, cur: 'HK$' },
+      { s: '9866', n: 'NIO Inc', c: 'CN', e: 'HKEX', p: 42.8, cur: 'HK$' }
+    ];
+
+    const FLAG_MAP = { IN: '🇮🇳', US: '🇺🇸', JP: '🇯🇵', KR: '🇰🇷', CN: '🇨🇳' };
+
+    // Build the master reactive state
+    let STOCKS = [...INITIAL_STOCKS];
+    EXTENDED_NAMES.forEach((item, idx) => {
+      const variance = (Math.random() * 0.12) - 0.06;
+      const base = item.p;
+      const curP = Number((base * (1 + variance)).toFixed(2));
+      STOCKS.push({
+        id: `${item.c}_${item.s}_${idx}`,
+        symbol: item.s,
+        name: item.n,
+        country: item.c,
+        flag: FLAG_MAP[item.c] || '🌐',
+        exchange: item.e,
+        price: curP,
+        basePrice: base,
+        currency: item.cur,
+        vol: (Math.random() * 20 + 1).toFixed(1) + 'M',
+        pe: (Math.random() * 40 + 10).toFixed(1),
+        mcap: item.cur + (Math.random() * 800 + 50).toFixed(0) + 'B',
+        high52: (curP * 1.3).toFixed(2),
+        low52: (curP * 0.75).toFixed(2)
+      });
+    });
+
+    // In-memory Virtual Portfolio & Orders
+    let PORTFOLIO = [];
+    let ORDERS = [];
+    let WATCHLIST = ['IN_RELIANCE', 'US_NVDA', 'JP_TOYOTA', 'KR_SAMSUNG', 'CN_TENCENT'];
+
+    // Comprehensive Real-Time News Database relating news to price fluctuations
+    const INITIAL_NEWS = [
+      {
+        id: 'news_1',
+        country: 'IN',
+        flag: '🇮🇳',
+        symbol: 'RELIANCE',
+        headline: 'Reliance Jio unveils scalable 5G Enterprise Cloud with sovereign data centers',
+        summary: 'Analysts project incremental ARR of ₹8,500 Cr over 3 fiscal years; massive block trades observed on NSE.',
+        impact: 'BULLISH',
+        impactScore: '+2.4%',
+        source: 'Bloomberg Quint',
+        timeAgo: '2m ago',
+        relatedIndexes: ['NIFTY50', 'SENSEX']
+      },
+      {
+        id: 'news_2',
+        country: 'US',
+        flag: '🇺🇸',
+        symbol: 'NVDA',
+        headline: 'NVIDIA expands next-gen Blackwell Ultra chip orders by 25% following hyperscaler demand',
+        summary: 'Cloud giants accelerate CapEx allocation, sparking strong institutional buying across Asian semiconductor suppliers.',
+        impact: 'BULLISH',
+        impactScore: '+4.1%',
+        source: 'Reuters US Tech',
+        timeAgo: '6m ago',
+        relatedIndexes: ['NASDAQ', 'SP500']
+      },
+      {
+        id: 'news_3',
+        country: 'JP',
+        flag: '🇯🇵',
+        symbol: '7203',
+        headline: 'Bank of Japan hints at interest rate policy pause as Yen stabilizes at 144/USD',
+        summary: 'Exporters rally on the Tokyo Stock Exchange as currency depreciation fears ease, lifting Toyota Motor and Sony.',
+        impact: 'BULLISH',
+        impactScore: '+1.8%',
+        source: 'Nikkei Asian Review',
+        timeAgo: '11m ago',
+        relatedIndexes: ['NIKKEI225']
+      },
+      {
+        id: 'news_4',
+        country: 'KR',
+        flag: '🇰🇷',
+        symbol: '005930',
+        headline: 'Samsung Electronics qualifies 12-layer HBM3E memory for top AI server architectures',
+        summary: 'Mass commercial deliveries scheduled for Q4; short-covering sparks a high volume surge on KRX KOSPI.',
+        impact: 'BULLISH',
+        impactScore: '+3.2%',
+        source: 'Korea Economic Daily',
+        timeAgo: '15m ago',
+        relatedIndexes: ['KOSPI']
+      },
+      {
+        id: 'news_5',
+        country: 'CN',
+        flag: '🇨🇳',
+        symbol: '9988',
+        headline: 'China PBOC injects 350B Yuan in liquidity support to spur retail consumption',
+        summary: 'Hang Seng and Shanghai Composite advance as technology and e-commerce heavyweights Alibaba & Tencent see strong foreign inflows.',
+        impact: 'BULLISH',
+        impactScore: '+2.9%',
+        source: 'Caixin Global',
+        timeAgo: '22m ago',
+        relatedIndexes: ['SHANGHAI']
+      },
+      {
+        id: 'news_6',
+        country: 'US',
+        flag: '🇺🇸',
+        symbol: 'INTC',
+        headline: 'Intel faces foundry margin headwind; delay in European fab construction reported',
+        summary: 'Gross margins expected to contract by 180 bps in upcoming quarter; aggressive intraday put buying detected.',
+        impact: 'BEARISH',
+        impactScore: '-3.8%',
+        source: 'Wall Street Journal',
+        timeAgo: '28m ago',
+        relatedIndexes: ['NASDAQ']
+      },
+      {
+        id: 'news_7',
+        country: 'IN',
+        flag: '🇮🇳',
+        symbol: 'HDFCBANK',
+        headline: 'RBI leaves repo rate unchanged at 6.50%; emphasizes liquidity moderation in unsecured loans',
+        summary: 'Private banking majors witness consolidation as net interest margin (NIM) guidance remains cautious.',
+        impact: 'BEARISH',
+        impactScore: '-1.1%',
+        source: 'Mint Markets',
+        timeAgo: '34m ago',
+        relatedIndexes: ['BANKNIFTY', 'NIFTY50']
+      },
+      {
+        id: 'news_8',
+        country: 'US',
+        flag: '🇺🇸',
+        symbol: 'TSLA',
+        headline: 'Tesla secures regulatory greenlight for Full Self-Driving rollout in Shanghai Free Trade Zone',
+        summary: 'Opening of high-density autonomous driving market in China drives positive momentum into US pre-market trading.',
+        impact: 'BULLISH',
+        impactScore: '+3.5%',
+        source: 'CNBC Auto',
+        timeAgo: '42m ago',
+        relatedIndexes: ['NASDAQ', 'SP500']
+      },
+      {
+        id: 'news_9',
+        country: 'JP',
+        flag: '🇯🇵',
+        symbol: '8035',
+        headline: 'Tokyo Electron reports record bookings for wafer fab equipment in generative AI segment',
+        summary: 'Operating profit guidance revised upward by 14%; boosts Nikkei semiconductor cluster.',
+        impact: 'BULLISH',
+        impactScore: '+4.8%',
+        source: 'Kyodo News',
+        timeAgo: '50m ago',
+        relatedIndexes: ['NIKKEI225']
+      }
+    ];
+
+    let LIVE_NEWS = [...INITIAL_NEWS];
+    let currentNewsImpactFilter = 'ALL';
+  </script>
+
+  <script>
+    // App State
+    let currentMarket = 'ALL';
+    let currentTab = 'gainers'; // 'gainers' | 'losers' | 'all' | 'news'
+    let selectedStock = null;
+    let tickSpeed = 600;
+    let tickInterval = null;
+    let detailChart = null;
+
+    // Real-Time News Ticker Loop
+    let currentNewsTickerIndex = 0;
+    function rotateBreakingNewsTicker() {
+      if (LIVE_NEWS.length === 0) return;
+      const item = LIVE_NEWS[currentNewsTickerIndex % LIVE_NEWS.length];
+      const el = document.getElementById('live-news-headline');
+      if (el) {
+        el.innerHTML = `
+          <span class="text-white font-semibold">${item.flag} ${item.symbol || item.country}:</span> 
+          <span>${item.headline}</span> 
+          <span class="font-mono ${item.impact === 'BULLISH' ? 'text-brand-green' : 'text-brand-red'} font-bold">(${item.impactScore})</span>
+        `;
+      }
+      currentNewsTickerIndex++;
+    }
+
+    function renderNewsList() {
+      const container = document.getElementById('news-list-container');
+      if (!container) return;
+
+      let filtered = [...LIVE_NEWS];
+      if (currentMarket !== 'ALL') {
+        filtered = filtered.filter(n => n.country === currentMarket);
+      }
+      if (currentNewsImpactFilter !== 'ALL') {
+        filtered = filtered.filter(n => n.impact === currentNewsImpactFilter);
+      }
+
+      if (filtered.length === 0) {
+        container.innerHTML = `<div class="text-center py-10 text-slate-500 text-xs">No news headlines matching current market filter (${currentMarket}).</div>`;
+        return;
+      }
+
+      container.innerHTML = filtered.map(item => {
+        const isBull = item.impact === 'BULLISH';
+        const badgeBg = isBull ? 'bg-brand-green/15 text-brand-green border-brand-green/30' : 'bg-brand-red/15 text-brand-red border-brand-red/30';
+        const impactDot = isBull ? 'bg-brand-green' : 'bg-brand-red';
+
+        return `
+          <div class="p-3.5 rounded-xl bg-brand-card hover:bg-brand-cardLight border border-brand-border transition space-y-2 cursor-pointer" onclick="handleNewsClick('${item.symbol}')">
+            <div class="flex items-center justify-between text-[10px]">
+              <div class="flex items-center gap-1.5">
+                <span class="text-base">${item.flag}</span>
+                <span class="font-bold text-white tracking-wide">${item.source}</span>
+                <span class="text-slate-500">• ${item.timeAgo}</span>
+              </div>
+              <div class="flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-bold font-mono ${badgeBg}">
+                <span class="w-1.5 h-1.5 rounded-full ${impactDot}"></span>
+                ${item.impact} (${item.impactScore})
+              </div>
+            </div>
+
+            <div>
+              <h4 class="text-xs font-bold text-slate-100 hover:text-brand-blue leading-snug">${item.headline}</h4>
+              <p class="text-[11px] text-slate-400 mt-1 leading-relaxed">${item.summary}</p>
+            </div>
+
+            <div class="flex items-center justify-between pt-1 border-t border-brand-border/40 text-[10px] text-slate-400">
+              <div class="flex items-center gap-1">
+                <span>Affected:</span>
+                <span class="px-1.5 py-0.2 rounded bg-brand-dark text-slate-200 font-mono font-bold border border-brand-border">${item.symbol}</span>
+                ${item.relatedIndexes.map(idx => `<span class="px-1 py-0.2 rounded bg-brand-border text-slate-300 font-mono">${idx}</span>`).join('')}
+              </div>
+              <span class="text-brand-blue font-medium flex items-center gap-0.5">
+                View Stock Chart →
+              </span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function filterNewsByImpact(impact) {
+      currentNewsImpactFilter = impact;
+      document.querySelectorAll('.news-filter-pill').forEach(btn => {
+        btn.classList.remove('bg-brand-blue', 'text-white');
+        btn.classList.add('bg-brand-card', 'text-slate-400');
+      });
+      event.target.classList.add('bg-brand-blue', 'text-white');
+      event.target.classList.remove('bg-brand-card', 'text-slate-400');
+      renderNewsList();
+    }
+
+    function handleNewsClick(symbol) {
+      const stock = STOCKS.find(s => s.symbol === symbol);
+      if (stock) {
+        openStockModal(stock.id);
+      } else {
+        showToast(`Broad sector catalyst affecting ${symbol}`, '📰');
+      }
+    }
+
+    function switchToNewsTab() {
+      const tabNews = document.getElementById('tab-news');
+      if (tabNews) tabNews.click();
+    }
+
+    function populateStockModalNews(stock) {
+      const newsContainer = document.getElementById('modal-stock-news');
+      const aiContainer = document.getElementById('modal-ai-explanation');
+      aiContainer.classList.add('hidden');
+      aiContainer.innerHTML = '';
+
+      const matchingNews = LIVE_NEWS.filter(n => n.symbol === stock.symbol || n.country === stock.country);
+      if (matchingNews.length === 0) {
+        newsContainer.innerHTML = `<div class="text-[11px] text-slate-500 py-2">No breaking company filings in past 2 hours. Trading on broad index momentum.</div>`;
+        return;
+      }
+
+      newsContainer.innerHTML = matchingNews.slice(0, 2).map(n => {
+        const isBull = n.impact === 'BULLISH';
+        return `
+          <div class="p-2 rounded-lg bg-brand-dark/60 border border-brand-border/60 text-xs">
+            <div class="flex items-center justify-between text-[10px] text-slate-400 mb-1">
+              <span>${n.source} • ${n.timeAgo}</span>
+              <span class="font-mono font-bold ${isBull ? 'text-brand-green' : 'text-brand-red'}">${n.impact} (${n.impactScore})</span>
+            </div>
+            <p class="text-slate-200 font-medium text-[11px]">${n.headline}</p>
+            <p class="text-slate-400 text-[10px] mt-0.5">${n.summary}</p>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function explainStockFluctuationWithAI() {
+      if (!selectedStock) return;
+      const aiBox = document.getElementById('modal-ai-explanation');
+      const btn = document.getElementById('ai-stock-driver-btn');
+      
+      aiBox.classList.remove('hidden');
+      aiBox.innerHTML = `
+        <div class="flex items-center gap-2 text-purple-300 text-xs">
+          <svg class="animate-spin h-3.5 w-3.5 text-purple-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+          </svg>
+          Correlating ${selectedStock.symbol} tick fluctuations with latest global headlines...
+        </div>
+      `;
+      btn.disabled = true;
+
+      try {
+        const matchingNews = LIVE_NEWS.filter(n => n.symbol === selectedStock.symbol || n.country === selectedStock.country)
+          .map(n => `[${n.source}] ${n.headline} - ${n.summary}`)
+          .join('\n');
+
+        const systemPrompt = "You are a senior equity research analyst at a top quantitative trading firm. Explain in 2 concise sentences exactly WHY this stock is fluctuating today based on relevant news catalysts, sectoral flows, or country-specific macro sentiment.";
+        const userQuery = `Stock: ${selectedStock.name} (${selectedStock.symbol})
+Exchange: ${selectedStock.exchange} (${selectedStock.country})
+Current Price: ${selectedStock.currency}${selectedStock.price}
+Base Price: ${selectedStock.currency}${selectedStock.basePrice}
+Relevant News Catalysts:
+${matchingNews || 'No direct company press release; guided by overall benchmark and foreign institutional flows.'}`;
+
+        const apiKey = "";
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+        const payload = {
+          contents: [{ parts: [{ text: userQuery }] }],
+          systemInstruction: { parts: [{ text: systemPrompt }] }
+        };
+
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const result = await response.json();
+        const analysis = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+        if (analysis) {
+          aiBox.innerHTML = `
+            <div class="flex items-start gap-1.5">
+              <span class="text-purple-400 text-xs mt-0.5">⚡</span>
+              <p class="text-slate-200 text-xs leading-relaxed">${analysis}</p>
+            </div>
+          `;
+        } else {
+          aiBox.innerHTML = `<p class="text-slate-300 text-xs">Momentum is driven by strong regional institutional buying and positive guidance in the broader benchmark index.</p>`;
+        }
+      } catch (e) {
+        aiBox.innerHTML = `<p class="text-slate-300 text-xs">Fluctuation driven by sector-wide beta movement, index weight rebalancing, and high liquidity in benchmark trading.</p>`;
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    // Format helper for regional currencies
+    function formatCurrency(price, curr) {
+      if (curr === '₹') {
+        return '₹' + price.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      }
+      return curr + price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function calculateStockMetrics(stock) {
+      const diff = stock.price - stock.basePrice;
+      const pct = (diff / stock.basePrice) * 100;
+      return {
+        diff: Number(diff.toFixed(2)),
+        pct: Number(pct.toFixed(2)),
+        isPositive: diff >= 0
+      };
+    }
+
+    function getFilteredStocks() {
+      let list = [...STOCKS];
+      if (currentMarket !== 'ALL') {
+        list = list.filter(s => s.country === currentMarket);
+      }
+      return list;
+    }
+
+    function renderIndices() {
+      const container = document.getElementById('indices-container');
+      if (!container) return;
+      container.innerHTML = GLOBAL_INDEXES.map(idx => {
+        const isUp = idx.change >= 0;
+        const colorClass = isUp ? 'text-brand-green' : 'text-brand-red';
+        const bgBadge = isUp ? 'bg-brand-green/10 border-brand-green/20' : 'bg-brand-red/10 border-brand-red/20';
+        return `
+          <div id="idx-card-${idx.id}" class="min-w-[155px] bg-brand-card p-3 rounded-xl border border-brand-border flex-shrink-0 transition hover:border-slate-500">
+            <div class="flex items-center justify-between text-[11px] font-semibold text-slate-400">
+              <span class="flex items-center gap-1"><span>${idx.flag}</span> ${idx.name}</span>
+            </div>
+            <div class="text-sm font-mono font-bold text-white mt-1.5" id="idx-price-${idx.id}">
+              ${idx.currency}${idx.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
+            <div class="text-[10px] font-mono font-semibold ${colorClass} mt-0.5 flex items-center justify-between" id="idx-change-${idx.id}">
+              <span>${isUp ? '+' : ''}${idx.change.toFixed(2)}</span>
+              <span class="px-1 py-0.2 rounded border ${bgBadge}">${isUp ? '+' : ''}${idx.changePercent.toFixed(2)}%</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderStockList() {
+      const container = document.getElementById('stocks-list');
+      if (!container) return;
+      let list = getFilteredStocks();
+
+      // Top 50 Gainers / Losers Sorting
+      if (currentTab === 'gainers') {
+        list.sort((a, b) => {
+          const mA = calculateStockMetrics(a);
+          const mB = calculateStockMetrics(b);
+          return mB.pct - mA.pct;
+        });
+        list = list.slice(0, 50);
+      } else if (currentTab === 'losers') {
+        list.sort((a, b) => {
+          const mA = calculateStockMetrics(a);
+          const mB = calculateStockMetrics(b);
+          return mA.pct - mB.pct;
+        });
+        list = list.slice(0, 50);
+      } else {
+        // Market List
+        list.sort((a, b) => b.price - a.price);
+      }
+
+      // Update Advances / Declines statistics
+      updateBreadthStats();
+
+      if (list.length === 0) {
+        container.innerHTML = `<div class="text-center py-10 text-slate-500 text-xs">No stocks available in this selection.</div>`;
+        return;
+      }
+
+      container.innerHTML = list.map((stock, rank) => {
+        const { diff, pct, isPositive } = calculateStockMetrics(stock);
+        const colorText = isPositive ? 'text-brand-green' : 'text-brand-red';
+        const bgPill = isPositive ? 'bg-brand-greenDim text-brand-green border-brand-green/20' : 'bg-brand-redDim text-brand-red border-brand-red/20';
+
+        return `
+          <div id="row-${stock.id}" onclick="openStockModal('${stock.id}')" 
+               class="flex items-center justify-between p-3 rounded-xl bg-brand-card hover:bg-brand-cardLight border border-brand-border/80 cursor-pointer transition active:scale-[0.99] select-none">
+            
+            <!-- Company Info & Rank -->
+            <div class="w-5/12 flex items-center gap-2">
+              <span class="text-[10px] font-mono text-slate-500 w-4">${rank + 1}</span>
+              <div class="truncate">
+                <div class="flex items-center gap-1">
+                  <span class="text-xs font-bold text-white truncate">${stock.symbol}</span>
+                  <span class="text-[9px] px-1 rounded bg-brand-dark text-slate-400 font-mono">${stock.exchange}</span>
+                </div>
+                <div class="text-[11px] text-slate-400 truncate flex items-center gap-1 mt-0.5">
+                  <span>${stock.flag}</span>
+                  <span class="truncate">${stock.name}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Price Column with Real-time Tick container -->
+            <div class="w-3/12 text-right">
+              <div id="price-${stock.id}" class="text-xs font-mono font-bold text-white transition-colors duration-200">
+                ${formatCurrency(stock.price, stock.currency)}
+              </div>
+              <div class="text-[10px] text-slate-500 font-mono">Vol: ${stock.vol}</div>
+            </div>
+
+            <!-- 24h Change Pill (Live dynamic ID) -->
+            <div class="w-4/12 text-right flex justify-end">
+              <div id="badge-${stock.id}" class="px-2 py-1 rounded-lg border font-mono text-xs font-bold ${bgPill} flex flex-col items-end leading-tight min-w-[78px] transition-colors duration-200">
+                <span id="pct-${stock.id}">${isPositive ? '+' : ''}${pct.toFixed(2)}%</span>
+                <span id="diff-${stock.id}" class="text-[9px] font-normal opacity-90">${isPositive ? '+' : ''}${diff.toFixed(2)}</span>
+              </div>
+            </div>
+
+          </div>
+        `;
+      }).join('');
+    }
+
+    function updateBreadthStats() {
+      let adv = 0;
+      let dec = 0;
+      STOCKS.forEach(s => {
+        if (s.price >= s.basePrice) adv++;
+        else dec++;
+      });
+      const advEl = document.getElementById('stat-advances');
+      const decEl = document.getElementById('stat-declines');
+      if (advEl) advEl.innerText = adv;
+      if (decEl) decEl.innerText = dec;
+    }
+
+    function triggerLiveMarketTick() {
+      // Pick random 6 to 12 stocks to tick on each pulse
+      const sampleSize = Math.floor(Math.random() * 7) + 6;
+      for (let i = 0; i < sampleSize; i++) {
+        const randIndex = Math.floor(Math.random() * STOCKS.length);
+        const stock = STOCKS[randIndex];
+        
+        // Dynamic tick percentage: -0.6% to +0.6%
+        const deltaPct = (Math.random() - 0.495) * 0.007;
+        const oldPrice = stock.price;
+        const newPrice = Math.max(0.1, Number((stock.price * (1 + deltaPct)).toFixed(2)));
+        stock.price = newPrice;
+
+        const isUp = newPrice >= oldPrice;
+        const metrics = calculateStockMetrics(stock);
+
+        // Update row price & change pill directly in DOM for smooth 60fps animations
+        const rowEl = document.getElementById(`row-${stock.id}`);
+        const priceEl = document.getElementById(`price-${stock.id}`);
+        const badgeEl = document.getElementById(`badge-${stock.id}`);
+        const pctEl = document.getElementById(`pct-${stock.id}`);
+        const diffEl = document.getElementById(`diff-${stock.id}`);
+
+        if (priceEl) {
+          priceEl.innerText = formatCurrency(stock.price, stock.currency);
+        }
+
+        if (badgeEl && pctEl && diffEl) {
+          pctEl.innerText = `${metrics.isPositive ? '+' : ''}${metrics.pct.toFixed(2)}%`;
+          diffEl.innerText = `${metrics.isPositive ? '+' : ''}${metrics.diff.toFixed(2)}`;
+          badgeEl.className = `px-2 py-1 rounded-lg border font-mono text-xs font-bold ${
+            metrics.isPositive ? 'bg-brand-greenDim text-brand-green border-brand-green/20' : 'bg-brand-redDim text-brand-red border-brand-red/20'
+          } flex flex-col items-end leading-tight min-w-[78px] transition-colors duration-200`;
+        }
+
+        if (rowEl) {
+          // Trigger Zerodha / Groww green/red flash animation
+          rowEl.classList.remove('tick-up', 'tick-down');
+          void rowEl.offsetWidth; // force DOM repaint
+          rowEl.classList.add(isUp ? 'tick-up' : 'tick-down');
+        }
+
+        // If modal open for this specific stock, refresh its header & depth
+        if (selectedStock && selectedStock.id === stock.id) {
+          updateModalDynamicData(stock);
+        }
+      }
+
+      // Randomly tick 1 or 2 global indices
+      const randIdx = Math.floor(Math.random() * GLOBAL_INDEXES.length);
+      const indexObj = GLOBAL_INDEXES[randIdx];
+      const idxDelta = (Math.random() - 0.49) * (indexObj.price * 0.0008);
+      indexObj.price = Number((indexObj.price + idxDelta).toFixed(2));
+      indexObj.change = Number((indexObj.change + idxDelta).toFixed(2));
+      indexObj.changePercent = Number(((indexObj.change / (indexObj.price - indexObj.change)) * 100).toFixed(2));
+
+      const idxPriceEl = document.getElementById(`idx-price-${indexObj.id}`);
+      const idxChangeEl = document.getElementById(`idx-change-${indexObj.id}`);
+      const idxCardEl = document.getElementById(`idx-card-${indexObj.id}`);
+      if (idxPriceEl && idxChangeEl) {
+        const isUp = indexObj.change >= 0;
+        const colorClass = isUp ? 'text-brand-green' : 'text-brand-red';
+        const bgBadge = isUp ? 'bg-brand-green/10 border-brand-green/20' : 'bg-brand-red/10 border-brand-red/20';
+
+        idxPriceEl.innerText = `${indexObj.currency}${indexObj.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        idxChangeEl.className = `text-[10px] font-mono font-semibold ${colorClass} mt-0.5 flex items-center justify-between`;
+        idxChangeEl.innerHTML = `
+          <span>${isUp ? '+' : ''}${indexObj.change.toFixed(2)}</span>
+          <span class="px-1 py-0.2 rounded border ${bgBadge}">${isUp ? '+' : ''}${indexObj.changePercent.toFixed(2)}%</span>
+        `;
+        if (idxCardEl) {
+          idxCardEl.classList.remove('tick-up', 'tick-down');
+          void idxCardEl.offsetWidth;
+          idxCardEl.classList.add(isUp ? 'tick-up' : 'tick-down');
+        }
+      }
+
+      updateBreadthStats();
+    }
+
+    function updateMarketClock() {
+      const clockEl = document.getElementById('market-clock');
+      if (clockEl) {
+        const now = new Date();
+        clockEl.innerText = now.toTimeString().split(' ')[0] + ' IST';
+      }
+    }
+
+    function startTickEngine(speed) {
+      if (tickInterval) clearInterval(tickInterval);
+      tickSpeed = Number(speed);
+      tickInterval = setInterval(triggerLiveMarketTick, tickSpeed);
+    }
+
+    function openStockModal(stockId) {
+      const stock = STOCKS.find(s => s.id === stockId);
+      if (!stock) return;
+      selectedStock = stock;
+
+      document.getElementById('modal-country-flag').innerText = stock.flag;
+      document.getElementById('modal-symbol').innerText = stock.symbol;
+      document.getElementById('modal-exchange').innerText = stock.exchange;
+      document.getElementById('modal-name').innerText = stock.name;
+      document.getElementById('modal-vol').innerText = stock.vol;
+      
+      // Metrics
+      document.getElementById('stat-high').innerText = formatCurrency(Number(stock.high52) * 0.98, stock.currency);
+      document.getElementById('stat-low').innerText = formatCurrency(Number(stock.low52) * 1.05, stock.currency);
+      document.getElementById('stat-52h').innerText = formatCurrency(Number(stock.high52), stock.currency);
+      document.getElementById('stat-52l').innerText = formatCurrency(Number(stock.low52), stock.currency);
+      document.getElementById('stat-mcap').innerText = stock.mcap;
+      document.getElementById('stat-pe').innerText = stock.pe;
+
+      updateModalDynamicData(stock);
+      renderDetailChart(stock);
+      generateLevel2Depth(stock);
+      populateStockModalNews(stock);
+
+      document.getElementById('stock-modal').classList.remove('hidden');
+    }
+
+    function updateModalDynamicData(stock) {
+      const { diff, pct, isPositive } = calculateStockMetrics(stock);
+      const modalPriceEl = document.getElementById('modal-price');
+      const modalChangeEl = document.getElementById('modal-change');
+
+      if (modalPriceEl) modalPriceEl.innerText = formatCurrency(stock.price, stock.currency);
+      if (modalChangeEl) {
+        modalChangeEl.innerHTML = `${isPositive ? '+' : ''}${diff.toFixed(2)} (${isPositive ? '+' : ''}${pct.toFixed(2)}%)`;
+        modalChangeEl.className = isPositive
+          ? 'text-xs font-mono font-semibold text-brand-green flex items-center justify-end gap-1'
+          : 'text-xs font-mono font-semibold text-brand-red flex items-center justify-end gap-1';
+      }
+    }
+
+    // Generate Level 2 Depth (Zerodha 5-Depth Book)
+    function generateLevel2Depth(stock) {
+      const bidsEl = document.getElementById('depth-bids');
+      const asksEl = document.getElementById('depth-asks');
+      if (!bidsEl || !asksEl) return;
+      const p = stock.price;
+
+      let bidsHtml = '';
+      let asksHtml = '';
+      let totalBidQty = 0;
+      let totalAskQty = 0;
+
+      for (let i = 1; i <= 5; i++) {
+        const bidP = (p - (i * 0.25 * (p * 0.001))).toFixed(2);
+        const askP = (p + (i * 0.25 * (p * 0.001))).toFixed(2);
+        const bidOrders = Math.floor(Math.random() * 40) + 5;
+        const askOrders = Math.floor(Math.random() * 40) + 5;
+        const bidQty = Math.floor(Math.random() * 1500) + 120;
+        const askQty = Math.floor(Math.random() * 1500) + 120;
+        totalBidQty += bidQty;
+        totalAskQty += askQty;
+
+        bidsHtml += `
+          <div class="flex justify-between items-center relative px-1 py-0.5 rounded overflow-hidden">
+            <div class="absolute inset-0 bid-bar w-[${Math.min(100, Math.floor(bidQty / 15))}%]"></div>
+            <span class="text-brand-green font-bold z-10">${bidP}</span>
+            <span class="text-slate-400 text-[10px] z-10">${bidOrders}</span>
+            <span class="text-slate-200 z-10">${bidQty}</span>
+          </div>
+        `;
+
+        asksHtml += `
+          <div class="flex justify-between items-center relative px-1 py-0.5 rounded overflow-hidden">
+            <div class="absolute inset-0 ask-bar w-[${Math.min(100, Math.floor(askQty / 15))}%]"></div>
+            <span class="text-brand-red font-bold z-10">${askP}</span>
+            <span class="text-slate-400 text-[10px] z-10">${askOrders}</span>
+            <span class="text-slate-200 z-10">${askQty}</span>
+          </div>
+        `;
+      }
+
+      bidsEl.innerHTML = bidsHtml;
+      asksEl.innerHTML = asksHtml;
+
+      const total = totalBidQty + totalAskQty;
+      const buyPct = Math.round((totalBidQty / total) * 100);
+      const ratioEl = document.getElementById('depth-ratio');
+      if (ratioEl) ratioEl.innerText = `${buyPct}% Buy / ${100 - buyPct}% Sell`;
+    }
+
+    function renderDetailChart(stock) {
+      const canvas = document.getElementById('stockDetailChart');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      if (detailChart) detailChart.destroy();
+
+      const dataPoints = [];
+      let base = stock.basePrice;
+      for (let i = 0; i < 30; i++) {
+        base += (Math.random() - 0.48) * (base * 0.004);
+        dataPoints.push(Number(base.toFixed(2)));
+      }
+      dataPoints.push(stock.price);
+
+      const isUp = stock.price >= stock.basePrice;
+      const lineColor = isUp ? '#00d09c' : '#eb5b3c';
+      const gradient = ctx.createLinearGradient(0, 0, 0, 160);
+      gradient.addColorStop(0, isUp ? 'rgba(0, 208, 156, 0.3)' : 'rgba(235, 91, 60, 0.3)');
+      gradient.addColorStop(1, 'rgba(18, 23, 34, 0.0)');
+
+      detailChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: Array.from({ length: dataPoints.length }, (_, i) => `${9 + Math.floor(i / 5)}:${(i % 5) * 12}`),
+          datasets: [{
+            data: dataPoints,
+            borderColor: lineColor,
+            borderWidth: 2,
+            backgroundColor: gradient,
+            fill: true,
+            tension: 0.3,
+            pointRadius: 0,
+            pointHoverRadius: 4,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
+          scales: {
+            x: { display: false },
+            y: {
+              display: true,
+              position: 'right',
+              grid: { color: '#222b3d' },
+              ticks: { color: '#64748b', font: { size: 9, family: 'JetBrains Mono' } }
+            }
+          }
+        }
+      });
+    }
+
+    function showToast(msg, icon = '✅') {
+      const toast = document.getElementById('toast');
+      if (!toast) return;
+      document.getElementById('toast-msg').innerText = msg;
+      document.getElementById('toast-icon').innerText = icon;
+      toast.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-3');
+      toast.classList.add('opacity-100', 'translate-y-0');
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'pointer-events-none', 'translate-y-3');
+        toast.classList.remove('opacity-100', 'translate-y-0');
+      }, 2500);
+    }
+
+    function executeOrder(type) {
+      if (!selectedStock) return;
+      const order = {
+        id: 'ORD_' + Math.floor(Math.random() * 89999 + 10000),
+        symbol: selectedStock.symbol,
+        exchange: selectedStock.exchange,
+        price: selectedStock.price,
+        currency: selectedStock.currency,
+        type: type,
+        qty: 10,
+        time: new Date().toLocaleTimeString()
+      };
+      ORDERS.unshift(order);
+
+      if (type === 'BUY') {
+        PORTFOLIO.push({
+          ...selectedStock,
+          buyPrice: selectedStock.price,
+          qty: 10
+        });
+        showToast(`BOUGHT 10 Qty ${selectedStock.symbol} at ${formatCurrency(selectedStock.price, selectedStock.currency)}`, '🚀');
+      } else {
+        showToast(`SHORT SOLD 10 Qty ${selectedStock.symbol} at ${formatCurrency(selectedStock.price, selectedStock.currency)}`, '📉');
+      }
+
+      const pCount = document.getElementById('portfolio-count');
+      if (pCount) pCount.innerText = PORTFOLIO.length;
+      document.getElementById('stock-modal').classList.add('hidden');
+    }
+
+    function setupSearch() {
+      const searchInput = document.getElementById('search-input');
+      const resultsContainer = document.getElementById('search-results');
+      if (!searchInput || !resultsContainer) return;
+
+      searchInput.addEventListener('input', (e) => {
+        const query = e.target.value.trim().toLowerCase();
+        if (!query) {
+          resultsContainer.innerHTML = '<div class="text-center py-6 text-slate-500 text-xs">Type a company symbol, index or country...</div>';
+          return;
+        }
+
+        const matches = STOCKS.filter(s => 
+          s.symbol.toLowerCase().includes(query) || 
+          s.name.toLowerCase().includes(query) ||
+          s.country.toLowerCase().includes(query)
+        ).slice(0, 15);
+
+        if (matches.length === 0) {
+          resultsContainer.innerHTML = '<div class="text-center py-6 text-slate-500 text-xs">No matching securities found.</div>';
+          return;
+        }
+
+        resultsContainer.innerHTML = matches.map(s => {
+          const { diff, pct, isPositive } = calculateStockMetrics(s);
+          return `
+            <div onclick="selectSearchResult('${s.id}')" class="p-3 flex items-center justify-between hover:bg-brand-card cursor-pointer rounded-xl transition">
+              <div class="flex items-center gap-2.5">
+                <span class="text-lg">${s.flag}</span>
+                <div>
+                  <div class="text-xs font-bold text-white">${s.symbol} <span class="text-[10px] text-slate-400 font-mono">(${s.exchange})</span></div>
+                  <div class="text-[11px] text-slate-400">${s.name}</div>
+                </div>
+              </div>
+              <div class="text-right">
+                <div class="text-xs font-mono font-bold text-white">${formatCurrency(s.price, s.currency)}</div>
+                <div class="text-[10px] font-mono font-semibold ${isPositive ? 'text-brand-green' : 'text-brand-red'}">
+                  ${isPositive ? '+' : ''}${pct.toFixed(2)}%
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+      });
+    }
+
+    function selectSearchResult(id) {
+      document.getElementById('search-modal').classList.add('hidden');
+      openStockModal(id);
+    }
+
+    async function fetchGeminiAiMarketPulse() {
+      const contentEl = document.getElementById('ai-response-content');
+      const btn = document.getElementById('refresh-ai-btn');
+      if (!contentEl) return;
+
+      contentEl.innerHTML = `
+        <div class="flex items-center gap-2 text-purple-300">
+          <svg class="animate-spin h-4 w-4 text-purple-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+          </svg>
+          Scanning global macro catalysts for India, US, China, Japan & Korea...
+        </div>
+      `;
+      if (btn) btn.disabled = true;
+
+      try {
+        const topGainersSummary = [...STOCKS].sort((a, b) => (b.price - b.basePrice) / b.basePrice - (a.price - a.basePrice) / a.basePrice).slice(0, 4).map(s => `${s.symbol} (${s.country})`).join(', ');
+        const topLosersSummary = [...STOCKS].sort((a, b) => (a.price - a.basePrice) / a.basePrice - (b.price - b.basePrice) / b.basePrice).slice(0, 4).map(s => `${s.symbol} (${s.country})`).join(', ');
+
+        const systemPrompt = "You are a chief global market strategist. Provide a succinct 3-bullet macro briefing outlining market drivers across Asian (India, Japan, Korea, China) and US sessions today.";
+        const userQuery = `Current Gainers: ${topGainersSummary}. Current Laggards: ${topLosersSummary}. Latest Headlines: ${LIVE_NEWS.slice(0, 3).map(n => n.headline).join('; ')}`;
+
+        const apiKey = "";
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+        const payload = {
+          contents: [{ parts: [{ text: userQuery }] }],
+          systemInstruction: { parts: [{ text: systemPrompt }] }
+        };
+
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const result = await response.json();
+        const analysis = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+        if (analysis) {
+          contentEl.innerHTML = `<div class="text-xs text-purple-100 whitespace-pre-line leading-relaxed">${analysis}</div>`;
+        } else {
+          contentEl.innerHTML = `<p class="text-slate-300">Asian tech equities and semiconductor supply chains are firming up following strong CapEx guidance. Indian banking indices show consolidation while US futures trade defensively ahead of central bank liquidity announcements.</p>`;
+        }
+      } catch (err) {
+        contentEl.innerHTML = `<p class="text-slate-300">Global markets exhibit divergent beta: Indian benchmarks maintain support above key exponential moving averages, while Asian hardware manufacturers benefit from AI semiconductor demand. US tech consolidates.</p>`;
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    function setupEventListeners() {
+      // Country Market Filter clicks
+      document.querySelectorAll('.market-filter-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          document.querySelectorAll('.market-filter-btn').forEach(b => {
+            b.classList.remove('bg-brand-green', 'text-black', 'font-bold', 'active-filter');
+            b.classList.add('bg-brand-card', 'text-slate-300');
+          });
+          btn.classList.add('bg-brand-green', 'text-black', 'font-bold', 'active-filter');
+          btn.classList.remove('bg-brand-card', 'text-slate-300');
+          
+          currentMarket = btn.dataset.market;
+          renderStockList();
+          renderNewsList();
+        });
+      });
+
+      // Top 50 Gainers / Losers / Stocks / News Tabs
+      const tabGainers = document.getElementById('tab-gainers');
+      const tabLosers = document.getElementById('tab-losers');
+      const tabAll = document.getElementById('tab-all');
+      const tabNews = document.getElementById('tab-news');
+      const stocksView = document.getElementById('stocks-view-container');
+      const newsView = document.getElementById('news-view-container');
+
+      function resetTabs() {
+        [tabGainers, tabLosers, tabAll, tabNews].forEach(t => {
+          if (t) t.className = 'tab-btn py-2 rounded-xl text-slate-400 hover:text-white transition flex items-center justify-center gap-1';
+        });
+      }
+
+      if (tabGainers) {
+        tabGainers.addEventListener('click', () => {
+          resetTabs();
+          tabGainers.className = 'tab-btn active-tab py-2 rounded-xl bg-brand-green/15 text-brand-green border border-brand-green/30 transition flex items-center justify-center gap-1 font-bold';
+          currentTab = 'gainers';
+          if (stocksView) stocksView.classList.remove('hidden');
+          if (newsView) newsView.classList.add('hidden');
+          renderStockList();
+        });
+      }
+
+      if (tabLosers) {
+        tabLosers.addEventListener('click', () => {
+          resetTabs();
+          tabLosers.className = 'tab-btn active-tab py-2 rounded-xl bg-brand-red/15 text-brand-red border border-brand-red/30 transition flex items-center justify-center gap-1 font-bold';
+          currentTab = 'losers';
+          if (stocksView) stocksView.classList.remove('hidden');
+          if (newsView) newsView.classList.add('hidden');
+          renderStockList();
+        });
+      }
+
+      if (tabAll) {
+        tabAll.addEventListener('click', () => {
+          resetTabs();
+          tabAll.className = 'tab-btn active-tab py-2 rounded-xl bg-brand-cardLight text-white border border-brand-border transition flex items-center justify-center gap-1 font-bold';
+          currentTab = 'all';
+          if (stocksView) stocksView.classList.remove('hidden');
+          if (newsView) newsView.classList.add('hidden');
+          renderStockList();
+        });
+      }
+
+      if (tabNews) {
+        tabNews.addEventListener('click', () => {
+          resetTabs();
+          tabNews.className = 'tab-btn active-tab py-2 rounded-xl bg-amber-500/15 text-amber-400 border border-amber-500/30 transition flex items-center justify-center gap-1 font-bold';
+          currentTab = 'news';
+          if (stocksView) stocksView.classList.add('hidden');
+          if (newsView) newsView.classList.remove('hidden');
+          renderNewsList();
+        });
+      }
+
+      // Bottom Navigation Buttons
+      const navNewsBtn = document.getElementById('nav-news-btn');
+      if (navNewsBtn) {
+        navNewsBtn.addEventListener('click', () => {
+          if (tabNews) tabNews.click();
+        });
+      }
+
+      const navStocksBtn = document.getElementById('nav-stocks-btn');
+      if (navStocksBtn) {
+        navStocksBtn.addEventListener('click', () => {
+          if (tabGainers) tabGainers.click();
+        });
+      }
+
+      // Tick Speed Selector
+      const speedSelect = document.getElementById('speed-selector');
+      if (speedSelect) {
+        speedSelect.addEventListener('change', (e) => {
+          startTickEngine(e.target.value);
+          const statusEl = document.getElementById('tick-engine-status');
+          if (statusEl) statusEl.innerText = `LIVE TICK FEED (${e.target.value}ms)`;
+        });
+      }
+
+      // Search Modal Handlers
+      const openSearchBtn = document.getElementById('open-search-btn');
+      if (openSearchBtn) {
+        openSearchBtn.addEventListener('click', () => {
+          document.getElementById('search-modal').classList.remove('hidden');
+          document.getElementById('search-input').focus();
+        });
+      }
+      const closeSearchBtn = document.getElementById('close-search-btn');
+      if (closeSearchBtn) {
+        closeSearchBtn.addEventListener('click', () => {
+          document.getElementById('search-modal').classList.add('hidden');
+        });
+      }
+
+      // Stock Detail Modal Handlers
+      const closeModalBtn = document.getElementById('close-modal-btn');
+      if (closeModalBtn) {
+        closeModalBtn.addEventListener('click', () => {
+          document.getElementById('stock-modal').classList.add('hidden');
+          selectedStock = null;
+        });
+      }
+
+      // Timeframe buttons inside modal
+      document.querySelectorAll('.chart-time-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.chart-time-btn').forEach(b => {
+            b.classList.remove('bg-brand-blue', 'text-white');
+            b.classList.add('text-slate-400');
+          });
+          btn.classList.add('bg-brand-blue', 'text-white');
+          btn.classList.remove('text-slate-400');
+          if (selectedStock) renderDetailChart(selectedStock);
+        });
+      });
+
+      // Buy / Sell action buttons
+      const buyBtn = document.getElementById('action-buy-btn');
+      if (buyBtn) buyBtn.addEventListener('click', () => executeOrder('BUY'));
+
+      const sellBtn = document.getElementById('action-sell-btn');
+      if (sellBtn) sellBtn.addEventListener('click', () => executeOrder('SELL'));
+
+      // AI Panel Toggle & Button
+      const aiPanel = document.getElementById('gemini-ai-box');
+      const toggleAiBtn = document.getElementById('toggle-gemini-ai');
+      if (toggleAiBtn && aiPanel) {
+        toggleAiBtn.addEventListener('click', () => {
+          aiPanel.classList.toggle('hidden');
+          if (!aiPanel.classList.contains('hidden')) {
+            aiPanel.scrollIntoView({ behavior: 'smooth' });
+          }
+        });
+      }
+
+      const refreshAiBtn = document.getElementById('refresh-ai-btn');
+      if (refreshAiBtn) refreshAiBtn.addEventListener('click', fetchGeminiAiMarketPulse);
+
+      // Watchlist Navigation Toggle
+      const navWatchlist = document.getElementById('nav-watchlist-btn');
+      if (navWatchlist) {
+        navWatchlist.addEventListener('click', () => {
+          showToast("Switched to pinned global Watchlist view", '⭐');
+        });
+      }
+
+      // Portfolio Navigation Toggle
+      const navPortfolio = document.getElementById('nav-portfolio-btn');
+      if (navPortfolio) {
+        navPortfolio.addEventListener('click', () => {
+          showToast(`Virtual Portfolio: ${PORTFOLIO.length} Positions held`, '💼');
+        });
+      }
+
+      // Orders Navigation Toggle
+      const navOrders = document.getElementById('nav-orders-btn');
+      if (navOrders) {
+        navOrders.addEventListener('click', () => {
+          showToast(`Order Ledger: ${ORDERS.length} Executed orders`, '📜');
+        });
+      }
+    }
+
+    function startNewsGenerator() {
+      setInterval(() => {
+        const sampleStocks = STOCKS.slice(0, 15);
+        const randomStock = sampleStocks[Math.floor(Math.random() * sampleStocks.length)];
+        const isPositive = Math.random() > 0.45;
+        const catalysts = [
+          `surges following higher-than-expected quarterly operating margin expansion`,
+          `announces new strategic cloud infrastructure partnership across APAC`,
+          `secures regulatory clearance for large scale domestic expansion`,
+          `faces margin contraction amidst rising freight & raw material costs`,
+          `witnesses heavy block trade volume from institutional foreign investors`
+        ];
+        const randomCatalyst = catalysts[Math.floor(Math.random() * catalysts.length)];
+
+        const newNews = {
+          id: 'news_' + Date.now(),
+          country: randomStock.country,
+          flag: randomStock.flag,
+          symbol: randomStock.symbol,
+          headline: `${randomStock.name} (${randomStock.symbol}) ${randomCatalyst}`,
+          summary: `Immediate orderbook depth reacts with spiked volume on ${randomStock.exchange}.`,
+          impact: isPositive ? 'BULLISH' : 'BEARISH',
+          impactScore: isPositive ? `+${(Math.random() * 3 + 1).toFixed(1)}%` : `-${(Math.random() * 3 + 1).toFixed(1)}%`,
+          source: ['Reuters Market Wire', 'Bloomberg Asia', 'CNBC International', 'Nikkei Flash'][Math.floor(Math.random() * 4)],
+          timeAgo: 'Just now',
+          relatedIndexes: ['NIFTY50', 'NASDAQ', 'NIKKEI225']
+        };
+
+        LIVE_NEWS.unshift(newNews);
+        if (LIVE_NEWS.length > 30) LIVE_NEWS.pop();
+
+        if (currentTab === 'news') {
+          renderNewsList();
+        }
+      }, 20000);
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      renderIndices();
+      renderStockList();
+      renderNewsList();
+      setupSearch();
+      setupEventListeners();
+      
+      // Start live market clock & high frequency tick engine
+      setInterval(updateMarketClock, 1000);
+      updateMarketClock();
+      startTickEngine(600);
+
+      // Start breaking news rotator & live generator
+      setInterval(rotateBreakingNewsTicker, 4000);
+      rotateBreakingNewsTicker();
+      startNewsGenerator();
+    });
+  </script>
+</body>
+</html>
